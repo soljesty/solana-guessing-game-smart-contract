@@ -3,30 +3,72 @@ use solana_program::{
     entrypoint,
     entrypoint::ProgramResult,
     msg,
-    program::invoke,
+    program::{invoke},
     program_error::ProgramError,
     pubkey::Pubkey,
     system_instruction,
+    system_program,
 };
+use std::convert::TryInto;
 
 entrypoint!(process_instruction);
 
 pub fn process_instruction(
-    _program_id: &Pubkey,     // Program ID is not used in this example
-    accounts: &[AccountInfo], // Accounts involved in the transaction
-    _instruction_data: &[u8], // Instruction data (not used)
+    _program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
 ) -> ProgramResult {
+    // Ensure there are at least two accounts: payer and receiver
     if accounts.len() < 2 {
         msg!("Error: Not enough accounts provided.");
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    let payer = &accounts[0];     // User's wallet
-    let receiver = &accounts[1];  // Game's account
+    let payer = &accounts[0];     // User's wallet (payer)
+    let receiver = &accounts[1];  // Receiver's wallet
 
-    let amount = 1_000_000; // 0.001 SOL in lamports (1 SOL = 1,000,000,000 lamports)
+    // Ensure the payer is the signer
+    if !payer.is_signer {
+        msg!("Error: Payer is not the signer.");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
 
-    msg!("Attempting to transfer 0.001 SOL from {} to {}", payer.key, receiver.key);
+    // Check ownership of payer and receiver accounts
+    if *payer.owner != system_program::ID {
+        msg!("Error: Payer is not owned by the system program.");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if *receiver.owner != system_program::ID {
+        msg!("Error: Receiver is not owned by the system program.");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    // Parse the transfer amount from instruction data
+    if instruction_data.len() < 8 {
+        msg!("Error: Instruction data is too short.");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    let amount = instruction_data
+        .get(..8)
+        .and_then(|slice| slice.try_into().ok())
+        .map(u64::from_le_bytes)
+        .ok_or(ProgramError::InvalidInstructionData)?;
+
+    // Ensure the transfer amount is greater than zero
+    if amount == 0 {
+        msg!("Error: Transfer amount must be greater than zero.");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    // Ensure the payer has enough funds to make the transfer
+    if **payer.lamports.borrow() < amount {
+        msg!("Error: Payer has insufficient funds.");
+        return Err(ProgramError::InsufficientFunds);
+    }
+
+    msg!("Attempting to transfer {} lamports...", amount);
 
     // Create the transfer instruction
     let transfer_instruction = system_instruction::transfer(
@@ -45,3 +87,4 @@ pub fn process_instruction(
 
     Ok(())
 }
+
