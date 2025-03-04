@@ -1,1 +1,1 @@
-Read_Me.txt file is located in src direcctory of repo
+Solana contract regulated guessing game. This repo contains the smart contract code the implements transactions for game access. This smart contract has been deployed to Solana's DevNet Blockchain for testing. Tools to solidify securty for this contract include Auditware / radar and other analysis tools.
