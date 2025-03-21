@@ -1,0 +1,91 @@
+How to set up a Cloud Compute Environment and Deploy This Smart Contract from Scratch:
+Example follows setup of an Ubuntu EC2 or Vast.ai machine
+
+# Start by updating and upgrading the system
+echo "Updating and upgrading the system..."
+sudo apt update && sudo apt upgrade -y
+
+sudo nano /etc/environment
+Comment out keys that start with ‘AAA’
+
+# Install prerequisites
+echo "Installing Python 3, pip, Git, and other essentials..."
+sudo apt install -y python3 python3-pip git curl build-essential
+
+# Update system and install dependencies (nano, git)
+echo "Updating system and installing dependencies..."
+sudo apt-get update
+sudo apt-get install -y nano git curl
+
+# Install Rust
+echo "Installing Rust..."
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# Source the Rust environment to make rustc available in the current session
+echo "Setting up Rust environment..."
+source "$HOME/.cargo/env"
+
+# Install Rustc
+rustup install 1.79.0
+rustup default 1.79.0
+rustup override set 1.79.0
+
+Install Solana:
+echo "Installing Solana…"
+sh -c "$(curl -sSfL https://release.anza.xyz/v2.1.5/install)" 
+
+Add Solana to PATH:
+echo "Adding Solana to PATH..."
+export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+
+Seed Phrase Recovery:
+# In order to recovery your key, you will need to enter your 12 word recovery phrase. This will
+# not be visible when entering it – I recommend typing it in a text file and pasting it in to prevent error
+solana-keygen recover "prompt://?key=0/0" --outfile ~/my-solana-keypair.json
+
+Location of Keypair File:
+/root/my-solana-keypair.json
+
+Set Solana Wallet:
+solana config set --keypair /root/my-solana-keypair.json
+
+Fund Wallet if Needed:
+solana airdrop 2 --url https://api.devnet.solana.com 
+
+Create Smart Contract Project:
+cargo new --lib solana-smart-contract
+cd solana-smart-contract
+
+Copy Smart Contract code to the lib.rs file
+
+Toml file:
+[package]
+name = "solana-smart-contract"
+version = "0.1.0" 
+authors = ["Andrew Foudree afoudree@gmail.com"] 
+edition = "2018" 
+
+[dependencies] 
+solana-program = "1.14.17"
+borsh = "0.9.1"
+#solana-cargo-build-sbf = "1.79.0"
+
+[lib]
+crate-type = ["cdylib"] # This is important for Solana's runtime to load the contract
+
+To Verify Build Rustc Versions:
+rustc --version
+cargo build-sbf --version 
+
+Build Solana Smart Contract:
+cargo build-sbf
+
+solana config set --url https://api.devnet.solana.com
+
+solana program deploy ~/solana_smart_contract/target/deploy/solana_smart_contract.so --keypair ~/my-solana-keypair.json
+
+** MAKE SURE YOU HAVE THE CORRECT PATH TO SMART CONTRACT **
+** MAKE SURE YOU HAVE FUNDED YOUR WALLET WITH DEVSOL FROM THE FAUCET **
+
+
+
